@@ -371,7 +371,9 @@ export class GatewayClient {
       const forceTerminateTimer = setTimeout(() => {
         try {
           ws.terminate();
-        } catch {}
+        } catch (err) {
+          // best-effort terminate
+        }
         this.resolvePendingStop(ws);
       }, FORCE_STOP_TERMINATE_GRACE_MS);
       forceTerminateTimer.unref?.();

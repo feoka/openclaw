@@ -94,7 +94,9 @@ function extractSherpaOnnxText(raw: string): string | null {
           return text.trim();
         }
       }
-    } catch {}
+    } catch (err) {
+      // best-effort parse
+    }
     return null;
   };
 
@@ -195,7 +197,9 @@ async function resolveCliOutput(params: {
       if (content.trim()) {
         return content.trim();
       }
-    } catch {}
+    } catch (err) {
+      // best-effort read
+    }
   }
 
   if (commandId === "gemini") {

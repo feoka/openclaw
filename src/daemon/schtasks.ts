@@ -718,7 +718,9 @@ export async function uninstallScheduledTask({
   try {
     await fs.unlink(startupEntryPath);
     stdout.write(`${formatLine("Removed Windows login item", startupEntryPath)}\n`);
-  } catch {}
+  } catch (err) {
+    // best-effort remove
+  }
 
   const scriptPath = resolveTaskScriptPath(env);
   try {

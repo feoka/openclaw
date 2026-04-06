@@ -30,12 +30,14 @@ function coerceApiHost(params: {
   try {
     const url = new URL(raw);
     return url.origin;
-  } catch {}
+  } catch (err) {
+    // best-effort parse
+  }
 
   try {
     const url = new URL(`https://${raw}`);
     return url.origin;
-  } catch {
+  } catch (err) {
     return "https://api.minimax.io";
   }
 }

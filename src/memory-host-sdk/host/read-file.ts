@@ -43,7 +43,9 @@ export async function readMemoryFile(params: {
           allowedAdditional = true;
           break;
         }
-      } catch {}
+      } catch (err) {
+        // best-effort stat
+      }
     }
   }
   if (!allowedWorkspace && !allowedAdditional) {

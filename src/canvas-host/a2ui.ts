@@ -103,7 +103,9 @@ export function injectCanvasLiveReload(html: string): string {
           return true;
         }
       }
-    } catch {}
+    } catch (err) {
+      // best-effort post
+    }
     return false;
   }
   function sendUserAction(userAction) {
@@ -127,7 +129,9 @@ export function injectCanvasLiveReload(html: string): string {
     ws.onmessage = (ev) => {
       if (String(ev.data || "") === "reload") location.reload();
     };
-  } catch {}
+  } catch (err) {
+    // best-effort WebSocket
+  }
 })();
 </script>
 `.trim();

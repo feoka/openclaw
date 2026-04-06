@@ -447,75 +447,152 @@ export async function runEmbeddedAttempt(
     let abortSessionForYield: (() => void) | null = null;
     let queueYieldInterruptForSession: (() => void) | null = null;
     let yieldAbortSettled: Promise<void> | null = null;
+    const onYieldCallback = (message: string) => {
+      yieldDetected = true;
+      yieldMessage = message;
+      queueYieldInterruptForSession?.();
+      runAbortController.abort("sessions_yield");
+      abortSessionForYield?.();
+    };
     // Check if the model supports native image input
+  disableTools: boolean;
+  toolsAllow?: string[];
+  agentId: string;
+  agentDir: string;
+  effectiveWorkspace: string;
+  sandbox: ReturnType<typeof resolveSandboxContext>;
+  resolvedWorkspace: string;
+  execOverrides: EmbeddedRunAttemptParams["execOverrides"];
+  bashElevated: boolean;
+  messageChannel?: string;
+  messageProvider?: string;
+  agentAccountId?: string;
+  messageTo?: string;
+  messageThreadId?: string;
+  groupId?: string;
+  groupChannel?: string;
+  groupSpace?: string;
+  spawnedBy?: string;
+  senderId?: string;
+  senderName?: string;
+  senderUsername?: string;
+  senderE164?: string;
+  senderIsOwner?: boolean;
+  allowGatewaySubagentBinding?: boolean;
+  sessionKey?: string;
+  sessionId: string;
+  runId: string;
+  config?: OpenClawConfig;
+  modelId: string;
+  model: EmbeddedModelRef;
+  currentChannelId?: string;
+  currentThreadTs?: string;
+  currentMessageId?: string;
+  replyToMode?: string;
+  hasRepliedRef?: boolean;
+  modelHasVision: boolean;
+  requireExplicitMessageTarget?: boolean;
+  disableMessageTool?: boolean;
+  onYield: (message: string) => void;
+}): ReturnType<typeof createOpenClawCodingTools> {
+  const allTools = createOpenClawCodingTools({
+    agentId: params.agentId,
+    ...buildEmbeddedAttemptToolRunContext(params as Omit<EmbeddedRunAttemptParams, keyof typeof buildEmbeddedAttemptToolRunContext> & { config?: OpenClawConfig }),
+    exec: {
+      ...params.execOverrides,
+      elevated: params.bashElevated,
+    },
+    sandbox: params.sandbox,
+    messageProvider: params.messageChannel ?? params.messageProvider,
+    agentAccountId: params.agentAccountId,
+    messageTo: params.messageTo,
+    messageThreadId: params.messageThreadId,
+    groupId: params.groupId,
+    groupChannel: params.groupChannel,
+    groupSpace: params.groupSpace,
+    spawnedBy: params.spawnedBy,
+    senderId: params.senderId,
+    senderName: params.senderName,
+    senderUsername: params.senderUsername,
+    senderE164: params.senderE164,
+    senderIsOwner: params.senderIsOwner,
+    allowGatewaySubagentBinding: params.allowGatewaySubagentBinding,
+    sessionKey: params.sessionKey,
+    sessionId: params.sessionId,
+    runId: params.runId,
+    agentDir: params.agentDir,
+    workspaceDir: params.effectiveWorkspace,
+    spawnWorkspaceDir: resolveAttemptSpawnWorkspaceDir({
+      sandbox: params.sandbox,
+      resolvedWorkspace: params.resolvedWorkspace,
+    }),
+    config: params.config,
+    modelProvider: params.model.provider,
+    modelId: params.modelId,
+    modelCompat: params.model.compat,
+    modelApi: params.model.api,
+    modelContextWindowTokens: params.model.contextWindow,
+    modelAuthMode: resolveModelAuthMode(params.model.provider, params.config),
+    currentChannelId: params.currentChannelId,
+    currentThreadTs: params.currentThreadTs,
+    currentMessageId: params.currentMessageId,
+    replyToMode: params.replyToMode,
+    hasRepliedRef: params.hasRepliedRef,
+    modelHasVision: params.modelHasVision,
+    requireExplicitMessageTarget: params.requireExplicitMessageTarget ?? isSubagentSessionKey(params.sessionKey),
+    disableMessageTool: params.disableMessageTool,
+    onYield: params.onYield,
+  });
+  if (params.toolsAllow && params.toolsAllow.length > 0) {
+    const allowSet = new Set(params.toolsAllow);
+    return allTools.filter((tool) => allowSet.has(tool.name));
+  }
+  return allTools;
+}
     const modelHasVision = params.model.input?.includes("image") ?? false;
     const toolsRaw = params.disableTools
       ? []
-      : (() => {
-          const allTools = createOpenClawCodingTools({
-            agentId: sessionAgentId,
-            ...buildEmbeddedAttemptToolRunContext(params),
-            exec: {
-              ...params.execOverrides,
-              elevated: params.bashElevated,
-            },
-            sandbox,
-            messageProvider: params.messageChannel ?? params.messageProvider,
-            agentAccountId: params.agentAccountId,
-            messageTo: params.messageTo,
-            messageThreadId: params.messageThreadId,
-            groupId: params.groupId,
-            groupChannel: params.groupChannel,
-            groupSpace: params.groupSpace,
-            spawnedBy: params.spawnedBy,
-            senderId: params.senderId,
-            senderName: params.senderName,
-            senderUsername: params.senderUsername,
-            senderE164: params.senderE164,
-            senderIsOwner: params.senderIsOwner,
-            allowGatewaySubagentBinding: params.allowGatewaySubagentBinding,
-            sessionKey: sandboxSessionKey,
-            sessionId: params.sessionId,
-            runId: params.runId,
-            agentDir,
-            workspaceDir: effectiveWorkspace,
-            // When sandboxing uses a copied workspace (`ro` or `none`), effectiveWorkspace points
-            // at the sandbox copy. Spawned subagents should inherit the real workspace instead.
-            spawnWorkspaceDir: resolveAttemptSpawnWorkspaceDir({
-              sandbox,
-              resolvedWorkspace,
-            }),
-            config: params.config,
-            abortSignal: runAbortController.signal,
-            modelProvider: params.model.provider,
-            modelId: params.modelId,
-            modelCompat: params.model.compat,
-            modelApi: params.model.api,
-            modelContextWindowTokens: params.model.contextWindow,
-            modelAuthMode: resolveModelAuthMode(params.model.provider, params.config),
-            currentChannelId: params.currentChannelId,
-            currentThreadTs: params.currentThreadTs,
-            currentMessageId: params.currentMessageId,
-            replyToMode: params.replyToMode,
-            hasRepliedRef: params.hasRepliedRef,
-            modelHasVision,
-            requireExplicitMessageTarget:
-              params.requireExplicitMessageTarget ?? isSubagentSessionKey(params.sessionKey),
-            disableMessageTool: params.disableMessageTool,
-            onYield: (message) => {
-              yieldDetected = true;
-              yieldMessage = message;
-              queueYieldInterruptForSession?.();
-              runAbortController.abort("sessions_yield");
-              abortSessionForYield?.();
-            },
-          });
-          if (params.toolsAllow && params.toolsAllow.length > 0) {
-            const allowSet = new Set(params.toolsAllow);
-            return allTools.filter((tool) => allowSet.has(tool.name));
-          }
-          return allTools;
-        })();
+      : buildEmbeddedAttemptTools({
+          disableTools: params.disableTools,
+          toolsAllow: params.toolsAllow,
+          agentId: sessionAgentId,
+          agentDir,
+          effectiveWorkspace,
+          sandbox,
+          resolvedWorkspace,
+          execOverrides: params.execOverrides,
+          bashElevated: params.bashElevated,
+          messageChannel: params.messageChannel,
+          messageProvider: params.messageProvider,
+          agentAccountId: params.agentAccountId,
+          messageTo: params.messageTo,
+          messageThreadId: params.messageThreadId,
+          groupId: params.groupId,
+          groupChannel: params.groupChannel,
+          groupSpace: params.groupSpace,
+          spawnedBy: params.spawnedBy,
+          senderId: params.senderId,
+          senderName: params.senderName,
+          senderUsername: params.senderUsername,
+          senderE164: params.senderE164,
+          senderIsOwner: params.senderIsOwner,
+          allowGatewaySubagentBinding: params.allowGatewaySubagentBinding,
+          sessionKey: sandboxSessionKey,
+          sessionId: params.sessionId,
+          runId: params.runId,
+          config: params.config,
+          modelId: params.modelId,
+          model: params.model,
+          currentChannelId: params.currentChannelId,
+          currentThreadTs: params.currentThreadTs,
+          currentMessageId: params.currentMessageId,
+          replyToMode: params.replyToMode,
+          hasRepliedRef: params.hasRepliedRef,
+          modelHasVision,
+          requireExplicitMessageTarget: params.requireExplicitMessageTarget,
+          disableMessageTool: params.disableMessageTool,
+          onYield: onYieldCallback,
+        });
     const toolsEnabled = supportsModelTools(params.model);
     const tools = normalizeProviderToolSchemas({
       tools: toolsEnabled ? toolsRaw : [],

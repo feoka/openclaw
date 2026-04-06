@@ -20,7 +20,7 @@ export async function pathExists(targetPath: string): Promise<boolean> {
   try {
     await fs.promises.access(targetPath);
     return true;
-  } catch {
+  } catch (err) {
     return false;
   }
 }
@@ -147,7 +147,7 @@ export function resolveConfigDir(
     if (hasNew) {
       return newDir;
     }
-  } catch {
+  } catch (err) {
     // best-effort
   }
   return newDir;

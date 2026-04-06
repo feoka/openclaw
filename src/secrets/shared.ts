@@ -48,11 +48,13 @@ export function writeJsonFileSecure(pathname: string, value: unknown): void {
   fs.chmodSync(pathname, 0o600);
 }
 
-export function readTextFileIfExists(pathname: string): string | null {
-  if (!fs.existsSync(pathname)) {
+export async function readTextFileIfExists(pathname: string): Promise<string | null> {
+  try {
+    await fs.promises.access(pathname);
+  } catch {
     return null;
   }
-  return fs.readFileSync(pathname, "utf8");
+  return fs.promises.readFile(pathname, "utf8");
 }
 
 export function writeTextFileAtomic(pathname: string, value: string, mode = 0o600): void {

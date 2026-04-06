@@ -97,7 +97,9 @@ async function readResponsePrefix(
         truncated = true;
         try {
           await reader.cancel();
-        } catch {}
+        } catch (err) {
+          // best-effort cancel
+        }
         break;
       }
       chunks.push(value);
@@ -107,8 +109,9 @@ async function readResponsePrefix(
   } finally {
     try {
       reader.releaseLock();
-    } catch {}
-  }
+    } catch (err) {
+      // best-effort cleanup
+    }
 
   return {
     buffer: Buffer.concat(

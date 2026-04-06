@@ -50,7 +50,9 @@ const DISABLED_MULTIMODAL_SETTINGS: MemoryMultimodalSettings = {
 export function ensureDir(dir: string): string {
   try {
     fsSync.mkdirSync(dir, { recursive: true });
-  } catch {}
+  } catch (err) {
+    // best-effort
+  }
   return dir;
 }
 
@@ -143,7 +145,9 @@ export async function listMemoryFiles(
     if (!dirStat.isSymbolicLink() && dirStat.isDirectory()) {
       await walkDir(memoryDir, result);
     }
-  } catch {}
+  } catch (err) {
+    // best-effort
+  }
 
   const normalizedExtraPaths = normalizeExtraMemoryPaths(workspaceDir, extraPaths);
   if (normalizedExtraPaths.length > 0) {
@@ -160,7 +164,8 @@ export async function listMemoryFiles(
         if (stat.isFile() && isAllowedMemoryFilePath(inputPath, multimodal)) {
           result.push(inputPath);
         }
-      } catch {}
+    } catch (err) {
+      // best-effort
     }
   }
   if (result.length <= 1) {
@@ -172,7 +177,9 @@ export async function listMemoryFiles(
     let key = entry;
     try {
       key = await fs.realpath(entry);
-    } catch {}
+    } catch (err) {
+      // best-effort
+    }
     if (seen.has(key)) {
       continue;
     }

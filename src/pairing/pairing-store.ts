@@ -501,7 +501,9 @@ async function writeAllowFromState(filePath: string, allowFrom: string[]): Promi
   let stat: Awaited<ReturnType<typeof fs.promises.stat>> | null = null;
   try {
     stat = await fs.promises.stat(filePath);
-  } catch {}
+  } catch (err) {
+    // best-effort
+  }
   setAllowFromReadCache(filePath, {
     exists: true,
     mtimeMs: stat?.mtimeMs ?? null,

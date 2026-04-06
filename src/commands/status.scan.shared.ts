@@ -194,8 +194,12 @@ export async function resolveSharedMemoryStatusSnapshot(params: {
   }
   try {
     await manager.probeVectorAvailability();
-  } catch {}
+  } catch (err) {
+    // best-effort probe
+  }
   const status = manager.status();
-  await manager.close?.().catch(() => {});
+  await manager.close?.().catch(() => {
+    // best-effort close
+  });
   return { agentId, ...status };
 }
